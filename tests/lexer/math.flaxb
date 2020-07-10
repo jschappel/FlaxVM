@@ -1,0 +1,17 @@
+# Integers NOTE THIS IS NOT A VALID BYTECODE FOR THE VM. USED FOR LEXER TESTING ONLY
+add 1 4
+sub 123 567
+div 3 4
+mult 4 7
+
+# Floats
+add 1.1 4.56787
+sub 123.1 567.123
+div 3.43 4.233
+mult 4.1 7.54
+
+# Integers and Floats
+add 1 4.3
+sub 0.123 567
+div .3 4
+mult 4 7.1
