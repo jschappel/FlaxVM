@@ -23,7 +23,7 @@
 //! add
 //! push 20
 //! mult
-//! 
+//!
 //! ret
 //! ```
 //!
@@ -48,11 +48,10 @@
 //!
 //TODO: FINISH THIS SECTION
 mod ast;
+mod interpreter;
 mod lexer;
 mod parser;
 mod vm;
-mod interpreter;
-
 
 use vm::VM;
 

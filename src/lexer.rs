@@ -43,6 +43,9 @@ impl fmt::Display for LexError {
 pub enum TokenType {
     Literal,
     Number,
+    True,
+    False,
+    Nil,
 }
 /// A representation of a Token that the lexer creates from raw text.
 ///
@@ -82,6 +85,9 @@ impl<'a> Token<'a> {
 ///
 /// The grammar for the lexer is regular and is shown below:
 /// - Number: All numbers are floating point decimals
+/// - True: boolean true
+/// - False: boolean false
+/// - Nil: nil
 /// - Literal: A Liter is a word that consists of the characters 'a'-'z' | 'A'-'Z' | '0'-'9'.
 /// A Literal MUST start with  a'-'z' | 'A'-'Z'
 ///
@@ -133,8 +139,10 @@ fn lex_line(line: &str, line_number: usize) -> Result<Tokens> {
     let mut tokens: Tokens = Vec::new();
     while let Some((i, c)) = chars.peek() {
         match c {
-            '0'..='9' | '.' => lex_number(*i, &mut chars, line, &mut tokens, line_number)?,
-            'a'..='z' | 'A'..='Z' => lex_literal(*i, &mut chars, line, &mut tokens, line_number)?,
+            '0'..='9' | '.' | '-' => lex_number(*i, &mut chars, line, &mut tokens, line_number)?,
+            'a'..='z' | 'A'..='Z' => {
+                lex_literal_or_string(*i, &mut chars, line, &mut tokens, line_number)?
+            },
             '#' => consume_till_end(&mut chars),
             _ => {
                 chars.next();
@@ -143,6 +151,7 @@ fn lex_line(line: &str, line_number: usize) -> Result<Tokens> {
     }
     Ok(tokens)
 }
+
 
 // Lexes a number into a token if the number is valid
 fn lex_number<'long: 'short, 'short, I>(
@@ -156,11 +165,22 @@ where
     I: Iterator<Item = (usize, char)>,
 {
     let mut found_decimal = false;
+    let mut is_negative = false;
     let mut cur_index = start;
     while let Some((i, c)) = it.peek() {
         match c {
             '0'..='9' => {
                 cur_index = *i;
+                it.next();
+            }
+            '-' => {
+                if is_negative {
+                    return Err(LexError::InvalidNumber(
+                        "Multiple '-''s found before number".to_owned(),
+                        line_num,
+                    ));
+                }
+                is_negative = true;
                 it.next();
             }
             '.' => {
@@ -193,7 +213,7 @@ where
 }
 
 // Lexes a number into a token if the literal is valid
-fn lex_literal<'a: 'b, 'b, I>(
+fn lex_literal_or_string<'a: 'b, 'b, I>(
     start: usize,
     it: &mut Peekable<I>,
     line: &'a str,
@@ -219,12 +239,29 @@ where
             }
         }
     }
-    t.push(Token::new_token(
-        &line[start..cur_index + 1],
-        TokenType::Literal,
-        line_num,
-    ));
+    if let Some(token) = check_reserved(&line[start..cur_index + 1], line_num) {
+        t.push(token);
+    } else {
+        t.push(Token::new_token(
+            &line[start..cur_index + 1],
+            TokenType::Literal,
+            line_num,
+        ));
+    }
     Ok(())
+}
+
+//  Determines if the literal is a string, bool, nil, ect..
+fn check_reserved(slice: &str, line: usize) -> Option<Token> {
+    match slice {
+        "push" | "add" | "mult" | "div" | "sub" => {
+            Some(Token::new_token(slice, TokenType::Literal, line))
+        }
+        "true" => Some(Token::new_token(slice, TokenType::True, line)),
+        "false" => Some(Token::new_token(slice, TokenType::False, line)),
+        "nil" => Some(Token::new_token(slice, TokenType::Nil, line)),
+        _ => None,
+    }
 }
 
 // Eating tokens until a newline character is found
@@ -241,6 +278,15 @@ mod test_lex_line {
     fn number_basic() {
         let tokens = lex_line("123", 1);
         let expected = vec![Token::new_token("123", TokenType::Number, 1)];
+        assert_eq!(expected, tokens.unwrap());
+    }
+
+    #[test]
+    fn number_negative() {
+        let tokens = lex_line("-123", 1);
+        let expected = vec![
+            Token::new_token("-123", TokenType::Number, 1),
+        ];
         assert_eq!(expected, tokens.unwrap());
     }
 
@@ -344,6 +390,23 @@ mod test_lex_line {
     fn literal_with_comment_with_space() {
         let tokens = lex_line("add #This is the comment", 1);
         let expected = vec![Token::new_token("add", TokenType::Literal, 1)];
+        assert_eq!(expected, tokens.unwrap());
+    }
+
+    //* Identifiers
+    #[test]
+    fn reserved_identifiers() {
+        let tokens = lex_line("true false nil add sub mult div", 1);
+        let expected = vec![
+            Token::new_token("true", TokenType::True, 1),
+            Token::new_token("false", TokenType::False, 1),
+            Token::new_token("nil", TokenType::Nil, 1),
+            Token::new_token("add", TokenType::Literal, 1),
+            Token::new_token("sub", TokenType::Literal, 1),
+            Token::new_token("mult", TokenType::Literal, 1),
+            Token::new_token("div", TokenType::Literal, 1),
+        ];
+
         assert_eq!(expected, tokens.unwrap());
     }
 }

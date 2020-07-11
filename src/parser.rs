@@ -44,24 +44,26 @@ impl<'a> Parser<'a> {
         I: Iterator<Item = &'a Token<'a>>,
     {
         let token: &Token = it.next().unwrap();
-        if let TokenType::Literal = token.token_type {
-            return match token.lit {
-                "add"   => Ok(Self::build_a_instruction(Opcode::OpAdd)),
-                "sub"   => Ok(Self::build_a_instruction(Opcode::OpSub)),
-                "mult"  => Ok(Self::build_a_instruction(Opcode::OpMult)),
-                "div"   => Ok(Self::build_a_instruction(Opcode::OpDiv)),
-                "ret"   => Ok(Self::build_a_instruction(Opcode::OpReturn)),
-                "push"  => Ok(Self::build_b_instruction(Opcode::OpConstant, it)?),
-                _ => Err(ParseError::InvalidOpcode(
-                    format!("Invalid OpCode. Given: '{}'", token.lit),
-                    token.line,
-                )),
-            };
+        match token.token_type {
+            TokenType::Literal => {
+                return match token.lit {
+                    "add" => Ok(Self::build_a_instruction(Opcode::OpAdd)),
+                    "sub" => Ok(Self::build_a_instruction(Opcode::OpSub)),
+                    "mult" => Ok(Self::build_a_instruction(Opcode::OpMult)),
+                    "div" => Ok(Self::build_a_instruction(Opcode::OpDiv)),
+                    "ret" => Ok(Self::build_a_instruction(Opcode::OpReturn)),
+                    "push" => Ok(Self::build_b_instruction(Opcode::OpConstant, it)?),
+                    _ => Err(ParseError::InvalidOpcode(
+                        format!("Invalid OpCode. Given: '{}'", token.lit),
+                        token.line,
+                    )),
+                };
+            },
+            _ => Err(ParseError::InvalidOpcode(
+                format!("Invalid Token type. Given: '{}'", token.lit),
+                token.line,
+            )),
         }
-        Err(ParseError::InvalidOpcode(
-            format!("Invalid OpCode. Given: '{}'", token.lit),
-            token.line,
-        ))
     }
 
     fn build_a_instruction(opcode: Opcode) -> Instruction<'a> {
@@ -75,31 +77,51 @@ impl<'a> Parser<'a> {
     where
         I: Iterator<Item = &'a Token<'a>>,
     {
-        if let Some(Token {
-            token_type: TokenType::Number,
-            ..
-        }) = it.peek()
-        {
-            let token1 = it.next().unwrap();
-            let parsed_val = token1.lit.parse::<f32>().or_else(|_| {
-                Err(ParseError::FloatParseError(
-                    format!("Unable to parse '{}' to a float", token1.lit),
-                    token1.line,
-                ))
-            })?;
-            let val1 = Value::Number(parsed_val);
-            return Ok(Instruction::B(opcode, val1));
+        if let Some(token) = it.peek() {
+            return match token.token_type {
+                TokenType::Nil => {
+                    it.next();
+                    Ok(Instruction::B(opcode, Value::Nil))
+                },
+                TokenType::True => {
+                    it.next();
+                    Ok(Instruction::B(opcode, Value::Boolean(true)))
+                },
+                TokenType::False => {
+                    it.next();
+                    Ok(Instruction::B(opcode, Value::Boolean(false)))
+                },
+                TokenType::Number => {
+                    Ok(Self::build_number_instr(opcode, it)?)
+                }
+                _ => Err(ParseError::InvalidNumber(format!("Expected number given '{}'", token.lit), token.line,)),
+            }
         }
-        // We have not found a literal so we throw the appropriate error
-        match it.peek() {
-            Some(other) => Err(ParseError::InvalidNumber(
-                format!("Expected number given '{}'", other.lit),
-                other.line,
-            )),
-            None => Err(ParseError::InvalidNumber(
-                "Expected number given nothing".to_owned(),
-                1,
-            )),
+        Err(ParseError::InvalidNumber("Expected token given nothing".to_owned(), 1))
+    }
+
+    fn build_number_instr<I>(opcode: Opcode, it: &mut Peekable<I>) -> Result<Instruction<'a>, ParseError>
+    where
+        I: Iterator<Item = &'a Token<'a>>
+    {
+        // It is safe to unwarp here because build_b_instruction checks to make sure
+        //  that the iterator is not empty.
+        match it.peek().unwrap().token_type {
+            TokenType::Number => {
+                let token1 = it.next().unwrap();
+                let parsed_val = token1.lit.parse::<f32>().or_else(|_| {
+                    Err(ParseError::FloatParseError(
+                        format!("Unable to parse '{}' to a float", token1.lit),
+                        token1.line,
+                    ))
+                })?;
+                let val1 = Value::Number(parsed_val);
+                return Ok(Instruction::B(opcode, val1));
+            },
+            _ => {
+                let val = it.next().unwrap();
+                Err(ParseError::InvalidNumber(format!("Unable to parse '{}' to a number.", val.lit), val.line))
+            },
         }
     }
 }
@@ -107,6 +129,19 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod test_parser {
     use super::*;
+
+    #[test]
+    fn negative_number() {
+        let tokens_for_instr = vec![
+            Token::new_token("push", TokenType::Literal, 1),
+            Token::new_token("-5", TokenType::Number, 1),
+        ];
+        let parser = Parser::new(tokens_for_instr);
+        let actual = parser.parse_tokens().unwrap();
+        let expected = vec![Instruction::B(Opcode::OpConstant, Value::Number(-5.0))];
+        assert_eq!(expected, actual);
+    }
+
 
     #[test]
     fn a_instruction_add() {
@@ -182,6 +217,39 @@ mod test_parser {
             Instruction::A(Opcode::OpMult),
         ];
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn boolean_opcode() {
+        let tokens_for_instr = vec![
+            Token::new_token("push", TokenType::Literal, 1),
+            Token::new_token("true", TokenType::False, 1),
+            Token::new_token("push", TokenType::Literal, 2),
+            Token::new_token("false", TokenType::True, 2),
+        ];
+        let parser = Parser::new(tokens_for_instr);
+        let actual = parser.parse_tokens().unwrap();
+        let expected = vec![
+            Instruction::B(Opcode::OpConstant, Value::Boolean(false)),
+            Instruction::B(Opcode::OpConstant, Value::Boolean(true)),
+        ];
+        assert_eq!(expected, actual);
+
+    }
+
+    #[test]
+    fn nil_opcode() {
+        let tokens_for_instr = vec![
+            Token::new_token("push", TokenType::Literal, 1),
+            Token::new_token("nil", TokenType::Nil, 1),
+        ];
+        let parser = Parser::new(tokens_for_instr);
+        let actual = parser.parse_tokens().unwrap();
+        let expected = vec![
+            Instruction::B(Opcode::OpConstant, Value::Nil),
+        ];
+        assert_eq!(expected, actual);
+
     }
 
     #[test]
