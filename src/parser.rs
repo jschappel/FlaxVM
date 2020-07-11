@@ -45,14 +45,22 @@ impl<'a> Parser<'a> {
     {
         let token: &Token = it.next().unwrap();
         match token.token_type {
+            TokenType::True => Ok(Self::build_a_instruction(Opcode::OpTrue)),
+            TokenType::False => Ok(Self::build_a_instruction(Opcode::OpFalse)),
+            TokenType::Nil => Ok(Self::build_a_instruction(Opcode::OpNil)),
+            TokenType::Not => Ok(Self::build_a_instruction(Opcode::OpNot)),
+            TokenType::Greater => Ok(Self::build_a_instruction(Opcode::OpGreater)),
+            TokenType::Less => Ok(Self::build_a_instruction(Opcode::OpLess)),
+            TokenType::Equal => Ok(Self::build_a_instruction(Opcode::OpEqual)),
             TokenType::Literal => {
                 return match token.lit {
-                    "add" => Ok(Self::build_a_instruction(Opcode::OpAdd)),
-                    "sub" => Ok(Self::build_a_instruction(Opcode::OpSub)),
-                    "mult" => Ok(Self::build_a_instruction(Opcode::OpMult)),
-                    "div" => Ok(Self::build_a_instruction(Opcode::OpDiv)),
-                    "ret" => Ok(Self::build_a_instruction(Opcode::OpReturn)),
-                    "push" => Ok(Self::build_b_instruction(Opcode::OpConstant, it)?),
+                    "add"    => Ok(Self::build_a_instruction(Opcode::OpAdd)),
+                    "sub"    => Ok(Self::build_a_instruction(Opcode::OpSub)),
+                    "mult"   => Ok(Self::build_a_instruction(Opcode::OpMult)),
+                    "div"    => Ok(Self::build_a_instruction(Opcode::OpDiv)),
+                    "ret"    => Ok(Self::build_a_instruction(Opcode::OpReturn)),
+                    "negate" => Ok(Self::build_a_instruction(Opcode::OpNegate)),
+                    "push"   => Ok(Self::build_b_instruction(Opcode::OpConstant, it)?),
                     _ => Err(ParseError::InvalidOpcode(
                         format!("Invalid OpCode. Given: '{}'", token.lit),
                         token.line,
@@ -79,10 +87,6 @@ impl<'a> Parser<'a> {
     {
         if let Some(token) = it.peek() {
             return match token.token_type {
-                TokenType::Nil => {
-                    it.next();
-                    Ok(Instruction::B(opcode, Value::Nil))
-                },
                 TokenType::True => {
                     it.next();
                     Ok(Instruction::B(opcode, Value::Boolean(true)))
@@ -240,13 +244,42 @@ mod test_parser {
     #[test]
     fn nil_opcode() {
         let tokens_for_instr = vec![
-            Token::new_token("push", TokenType::Literal, 1),
             Token::new_token("nil", TokenType::Nil, 1),
         ];
         let parser = Parser::new(tokens_for_instr);
         let actual = parser.parse_tokens().unwrap();
         let expected = vec![
-            Instruction::B(Opcode::OpConstant, Value::Nil),
+            Instruction::A(Opcode::OpNil),
+        ];
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn equality_opcode() {
+        let tokens_for_instr = vec![
+            Token::new_token("eq", TokenType::Equal, 1),
+            Token::new_token("gt", TokenType::Greater, 1),
+            Token::new_token("lt", TokenType::Less, 1),
+        ];
+        let parser = Parser::new(tokens_for_instr);
+        let actual = parser.parse_tokens().unwrap();
+        let expected = vec![
+            Instruction::A(Opcode::OpEqual),
+            Instruction::A(Opcode::OpGreater),
+            Instruction::A(Opcode::OpLess),
+        ];
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn not_opcode() {
+        let tokens_for_instr = vec![
+            Token::new_token("not", TokenType::Not, 1),
+        ];
+        let parser = Parser::new(tokens_for_instr);
+        let actual = parser.parse_tokens().unwrap();
+        let expected = vec![
+            Instruction::A(Opcode::OpNot),
         ];
         assert_eq!(expected, actual);
 

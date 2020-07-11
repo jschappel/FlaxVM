@@ -1,11 +1,20 @@
 #[derive(Debug, PartialEq)]
 pub enum Opcode {
+    OpTrue,
+    OpFalse,
+    OpNil,
+    OpNot,
+    OpReturn,
+    OpNegate,
+    OpGreater,
+    OpLess,
+    OpEqual,
     OpAdd,
     OpSub,
     OpDiv,
     OpMult,
     OpConstant,
-    OpReturn,
+    OpObj, // heap structures
 }
 
 #[derive(Debug, PartialEq)]
@@ -19,7 +28,7 @@ pub enum Value<'a> {
     Number(f32),
     Boolean(bool),
     Nil,
-    Str(&'a str),
+    Obj(&'a str),
 }
 
 use std::fmt;
@@ -27,6 +36,8 @@ impl<'a> fmt::Display for Value<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Number(num) => write!(f, "{}", num),
+            Value::Boolean(b) => write!(f, "{}", b),
+            Value::Nil => write!(f, "nil"),
             _ => write!(f, "Value type does not implement display yet"),
         }
     }

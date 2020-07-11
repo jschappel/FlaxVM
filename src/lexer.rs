@@ -45,7 +45,12 @@ pub enum TokenType {
     Number,
     True,
     False,
+    Equal,
+    Greater,
+    Less,
+    Minus,
     Nil,
+    Not,
 }
 /// A representation of a Token that the lexer creates from raw text.
 ///
@@ -78,6 +83,7 @@ impl<'a> Token<'a> {
     }
 }
 
+//TODO: Clean up documentation
 /// Lexer is a structure that converts raw text into tokens for the parser.
 /// Lexical analysis is the first step in compiling flax byte code into the virtual machine.
 /// The lexer takes the row text and then converts it into a vector of tokens. These tokens
@@ -142,7 +148,7 @@ fn lex_line(line: &str, line_number: usize) -> Result<Tokens> {
             '0'..='9' | '.' | '-' => lex_number(*i, &mut chars, line, &mut tokens, line_number)?,
             'a'..='z' | 'A'..='Z' => {
                 lex_literal_or_string(*i, &mut chars, line, &mut tokens, line_number)?
-            },
+            }
             '#' => consume_till_end(&mut chars),
             _ => {
                 chars.next();
@@ -151,7 +157,6 @@ fn lex_line(line: &str, line_number: usize) -> Result<Tokens> {
     }
     Ok(tokens)
 }
-
 
 // Lexes a number into a token if the number is valid
 fn lex_number<'long: 'short, 'short, I>(
@@ -259,7 +264,12 @@ fn check_reserved(slice: &str, line: usize) -> Option<Token> {
         }
         "true" => Some(Token::new_token(slice, TokenType::True, line)),
         "false" => Some(Token::new_token(slice, TokenType::False, line)),
+        "negate" => Some(Token::new_token(slice, TokenType::Minus, line)),
         "nil" => Some(Token::new_token(slice, TokenType::Nil, line)),
+        "not" => Some(Token::new_token(slice, TokenType::Not, line)),
+        "eq" => Some(Token::new_token(slice, TokenType::Equal, line)),
+        "gt" => Some(Token::new_token(slice, TokenType::Greater, line)),
+        "lt" => Some(Token::new_token(slice, TokenType::Less, line)),
         _ => None,
     }
 }
@@ -284,9 +294,7 @@ mod test_lex_line {
     #[test]
     fn number_negative() {
         let tokens = lex_line("-123", 1);
-        let expected = vec![
-            Token::new_token("-123", TokenType::Number, 1),
-        ];
+        let expected = vec![Token::new_token("-123", TokenType::Number, 1)];
         assert_eq!(expected, tokens.unwrap());
     }
 
@@ -396,7 +404,7 @@ mod test_lex_line {
     //* Identifiers
     #[test]
     fn reserved_identifiers() {
-        let tokens = lex_line("true false nil add sub mult div", 1);
+        let tokens = lex_line("true false nil add sub mult div negate not gt lt eq", 1);
         let expected = vec![
             Token::new_token("true", TokenType::True, 1),
             Token::new_token("false", TokenType::False, 1),
@@ -405,6 +413,11 @@ mod test_lex_line {
             Token::new_token("sub", TokenType::Literal, 1),
             Token::new_token("mult", TokenType::Literal, 1),
             Token::new_token("div", TokenType::Literal, 1),
+            Token::new_token("negate", TokenType::Minus, 1),
+            Token::new_token("not", TokenType::Not, 1),
+            Token::new_token("gt", TokenType::Greater, 1),
+            Token::new_token("lt", TokenType::Less, 1),
+            Token::new_token("eq", TokenType::Equal, 1),
         ];
 
         assert_eq!(expected, tokens.unwrap());
