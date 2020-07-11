@@ -12,6 +12,7 @@ impl<'vm> VM<'vm> {
             pc: 0,
             stack: Vec::new(),
             instructions,
+            
         }
     }
 
@@ -171,6 +172,7 @@ impl<'vm> VM<'vm> {
     }
 
     // This function is used for testing only. Not production
+    #[allow(dead_code)]
     fn reset(&mut self, instructions: Vec<Instruction<'vm>>) {
         self.pc = 0;
         self.stack = Vec::new();
@@ -178,6 +180,7 @@ impl<'vm> VM<'vm> {
     }
 
     // ONLY USE FOR TESTING PURPOSES
+    #[allow(dead_code)]
     fn test_extract_value(&self) -> Option<Value<'vm>> {
         if let Some(v) = self.peek() {
             return Some(v.clone())

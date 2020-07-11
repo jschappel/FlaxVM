@@ -52,6 +52,7 @@ mod interpreter;
 mod lexer;
 mod parser;
 mod vm;
+mod object;
 
 use vm::VM;
 

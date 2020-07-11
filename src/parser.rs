@@ -45,22 +45,21 @@ impl<'a> Parser<'a> {
     {
         let token: &Token = it.next().unwrap();
         match token.token_type {
-            TokenType::True => Ok(Self::build_a_instruction(Opcode::OpTrue)),
-            TokenType::False => Ok(Self::build_a_instruction(Opcode::OpFalse)),
             TokenType::Nil => Ok(Self::build_a_instruction(Opcode::OpNil)),
             TokenType::Not => Ok(Self::build_a_instruction(Opcode::OpNot)),
             TokenType::Greater => Ok(Self::build_a_instruction(Opcode::OpGreater)),
             TokenType::Less => Ok(Self::build_a_instruction(Opcode::OpLess)),
             TokenType::Equal => Ok(Self::build_a_instruction(Opcode::OpEqual)),
+            TokenType::Add => Ok(Self::build_a_instruction(Opcode::OpAdd)),
+            TokenType::Sub => Ok(Self::build_a_instruction(Opcode::OpSub)),
+            TokenType::Mult => Ok(Self::build_a_instruction(Opcode::OpMult)),
+            TokenType::Div => Ok(Self::build_a_instruction(Opcode::OpDiv)),
+            TokenType::Return => Ok(Self::build_a_instruction(Opcode::OpReturn)),
+            TokenType::Negate => Ok(Self::build_a_instruction(Opcode::OpNegate)),
+            TokenType::Push => Ok(Self::build_b_instruction(Opcode::OpConstant, it)?),
             TokenType::Literal => {
                 return match token.lit {
-                    "add"    => Ok(Self::build_a_instruction(Opcode::OpAdd)),
-                    "sub"    => Ok(Self::build_a_instruction(Opcode::OpSub)),
-                    "mult"   => Ok(Self::build_a_instruction(Opcode::OpMult)),
-                    "div"    => Ok(Self::build_a_instruction(Opcode::OpDiv)),
-                    "ret"    => Ok(Self::build_a_instruction(Opcode::OpReturn)),
-                    "negate" => Ok(Self::build_a_instruction(Opcode::OpNegate)),
-                    "push"   => Ok(Self::build_b_instruction(Opcode::OpConstant, it)?),
+                    //TODO: UPDATE TO HANDLE STRINGS
                     _ => Err(ParseError::InvalidOpcode(
                         format!("Invalid OpCode. Given: '{}'", token.lit),
                         token.line,
@@ -85,6 +84,7 @@ impl<'a> Parser<'a> {
     where
         I: Iterator<Item = &'a Token<'a>>,
     {
+        println!("{:?}", it.peek());
         if let Some(token) = it.peek() {
             return match token.token_type {
                 TokenType::True => {
@@ -97,6 +97,9 @@ impl<'a> Parser<'a> {
                 },
                 TokenType::Number => {
                     Ok(Self::build_number_instr(opcode, it)?)
+                }
+                TokenType::Str => {
+                    unimplemented!(); //TODO: Allocate String on the heap
                 }
                 _ => Err(ParseError::InvalidNumber(format!("Expected number given '{}'", token.lit), token.line,)),
             }
@@ -137,7 +140,7 @@ mod test_parser {
     #[test]
     fn negative_number() {
         let tokens_for_instr = vec![
-            Token::new_token("push", TokenType::Literal, 1),
+            Token::new_token("push", TokenType::Push, 1),
             Token::new_token("-5", TokenType::Number, 1),
         ];
         let parser = Parser::new(tokens_for_instr);
@@ -150,11 +153,11 @@ mod test_parser {
     #[test]
     fn a_instruction_add() {
         let tokens_for_instr = vec![
-            Token::new_token("push", TokenType::Literal, 1),
+            Token::new_token("push", TokenType::Push, 1),
             Token::new_token("5", TokenType::Number, 1),
-            Token::new_token("push", TokenType::Literal, 2),
+            Token::new_token("push", TokenType::Push, 2),
             Token::new_token("6", TokenType::Number, 2),
-            Token::new_token("add", TokenType::Literal, 3),
+            Token::new_token("add", TokenType::Add, 3),
         ];
         let parser = Parser::new(tokens_for_instr);
         let actual = parser.parse_tokens().unwrap();
@@ -169,11 +172,11 @@ mod test_parser {
     #[test]
     fn a_instruction_sub() {
         let tokens_for_instr = vec![
-            Token::new_token("push", TokenType::Literal, 1),
+            Token::new_token("push", TokenType::Push, 1),
             Token::new_token("5", TokenType::Number, 1),
-            Token::new_token("push", TokenType::Literal, 2),
+            Token::new_token("push", TokenType::Push, 2),
             Token::new_token("6", TokenType::Number, 2),
-            Token::new_token("sub", TokenType::Literal, 3),
+            Token::new_token("sub", TokenType::Sub, 3),
         ];
         let parser = Parser::new(tokens_for_instr);
         let actual = parser.parse_tokens().unwrap();
@@ -188,11 +191,11 @@ mod test_parser {
     #[test]
     fn a_instruction_div() {
         let tokens_for_instr = vec![
-            Token::new_token("push", TokenType::Literal, 1),
+            Token::new_token("push", TokenType::Push, 1),
             Token::new_token("5", TokenType::Number, 1),
-            Token::new_token("push", TokenType::Literal, 2),
+            Token::new_token("push", TokenType::Push, 2),
             Token::new_token("6", TokenType::Number, 2),
-            Token::new_token("div", TokenType::Literal, 3),
+            Token::new_token("div", TokenType::Div, 3),
         ];
         let parser = Parser::new(tokens_for_instr);
         let actual = parser.parse_tokens().unwrap();
@@ -207,11 +210,11 @@ mod test_parser {
     #[test]
     fn a_instruction_mult() {
         let tokens_for_instr = vec![
-            Token::new_token("push", TokenType::Literal, 1),
+            Token::new_token("push", TokenType::Push, 1),
             Token::new_token("5", TokenType::Number, 1),
-            Token::new_token("push", TokenType::Literal, 2),
+            Token::new_token("push", TokenType::Push, 2),
             Token::new_token("6", TokenType::Number, 2),
-            Token::new_token("mult", TokenType::Literal, 3),
+            Token::new_token("mult", TokenType::Mult, 3),
         ];
         let parser = Parser::new(tokens_for_instr);
         let actual = parser.parse_tokens().unwrap();
@@ -226,9 +229,9 @@ mod test_parser {
     #[test]
     fn boolean_opcode() {
         let tokens_for_instr = vec![
-            Token::new_token("push", TokenType::Literal, 1),
+            Token::new_token("push", TokenType::Push, 1),
             Token::new_token("true", TokenType::False, 1),
-            Token::new_token("push", TokenType::Literal, 2),
+            Token::new_token("push", TokenType::Push, 2),
             Token::new_token("false", TokenType::True, 2),
         ];
         let parser = Parser::new(tokens_for_instr);
@@ -290,9 +293,9 @@ mod test_parser {
         let tokens_for_instr = vec![
             Token::new_token("hello", TokenType::Literal, 1),
             Token::new_token("5", TokenType::Number, 1),
-            Token::new_token("push", TokenType::Literal, 2),
+            Token::new_token("push", TokenType::Push, 2),
             Token::new_token("6", TokenType::Number, 2),
-            Token::new_token("mult", TokenType::Literal, 3),
+            Token::new_token("mult", TokenType::Mult, 3),
         ];
         let parser = Parser::new(tokens_for_instr);
         let actual = parser.parse_tokens();
@@ -307,7 +310,7 @@ mod test_parser {
     #[test]
     fn invalid_constant() {
         let tokens_for_instr = vec![
-            Token::new_token("push", TokenType::Literal, 1),
+            Token::new_token("push", TokenType::Push, 1),
             Token::new_token("Josh", TokenType::Literal, 1),
         ];
         let parser = Parser::new(tokens_for_instr);
@@ -322,7 +325,7 @@ mod test_parser {
     #[test]
     fn invalid_float_parse() {
         let tokens_for_instr = vec![
-            Token::new_token("push", TokenType::Literal, 1),
+            Token::new_token("push", TokenType::Push, 1),
             Token::new_token("Josh", TokenType::Number, 1),
         ];
         let parser = Parser::new(tokens_for_instr);
@@ -340,7 +343,6 @@ mod test_parser {
         let tokens = lexer::Lexer::init("./tests/parser/add.flaxb").unwrap();
         let tokens = tokens.lex_file().unwrap();
         let actual = Parser::new(tokens);
-        println!("{:?}", actual.tokens);
         let expected = vec![
             Instruction::B(Opcode::OpConstant, Value::Number(5.0)),
             Instruction::B(Opcode::OpConstant, Value::Number(10.0)),
