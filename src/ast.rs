@@ -1,3 +1,5 @@
+use crate::object::{Object};
+
 #[derive(Debug, PartialEq)]
 pub enum Opcode {
     OpTrue,
@@ -23,12 +25,13 @@ pub enum Instruction<'a> {
     B(Opcode, Value<'a>), // Two part instruction: push 1
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub enum Value<'a> {
     Number(f32),
     Boolean(bool),
     Nil,
-    Obj(&'a str),
+    Obj(Object),
+    Other(&'a str),
 }
 
 use std::fmt;

@@ -1,5 +1,6 @@
 use crate::ast::{Instruction, Opcode, Value};
 use crate::lexer::{Token, TokenType};
+use crate::object::{HeapString, Object};
 use std::fmt;
 use std::iter::Peekable;
 
@@ -99,7 +100,13 @@ impl<'a> Parser<'a> {
                     Ok(Self::build_number_instr(opcode, it)?)
                 }
                 TokenType::Str => {
-                    unimplemented!(); //TODO: Allocate String on the heap
+                    it.next();
+                    if let Some(Token{ token_type: TokenType::Str,  lit: x, ..}) = it.next() {
+                        return Ok(Instruction::B(opcode, Value::Obj(Object::new_heap_string(*x))))
+                        
+                    }
+                    unimplemented!();
+                    
                 }
                 _ => Err(ParseError::InvalidNumber(format!("Expected number given '{}'", token.lit), token.line,)),
             }

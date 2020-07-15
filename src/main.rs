@@ -53,8 +53,11 @@ mod lexer;
 mod parser;
 mod vm;
 mod object;
-
+use std::cell::RefCell;
+use std::rc::Rc;
 use vm::VM;
+
+
 
 fn main() {
     let lexer = lexer::Lexer::init("./tests/vm/add.flaxb").unwrap();

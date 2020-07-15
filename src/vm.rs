@@ -3,7 +3,7 @@ use crate::ast::{Instruction, Opcode, Value};
 pub struct VM<'vm> {
     pc: usize,
     instructions: Vec<Instruction<'vm>>,
-    stack: Vec<Value<'vm>>,
+    stack: Vec<Value<'vm>>, // Note: The stack aso can contain ptrs to the heap
 }
 
 impl<'vm> VM<'vm> {
@@ -145,7 +145,7 @@ impl<'vm> VM<'vm> {
             },
             Instruction::B(opcode, val) => match opcode {
                 Opcode::OpConstant => {
-                    self.stack.push(val.clone());
+                    self.stack.push(*val);
                     self.pc += 1;
                 }
                 _ => panic!("Invalid Opcode for B_Instruction."),
@@ -183,7 +183,7 @@ impl<'vm> VM<'vm> {
     #[allow(dead_code)]
     fn test_extract_value(&self) -> Option<Value<'vm>> {
         if let Some(v) = self.peek() {
-            return Some(v.clone())
+            return Some(*v)
         }
         None
     }

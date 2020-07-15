@@ -1,0 +1,7 @@
+# -10 * 100 / 50
+push -10
+push 100
+mult
+push 50
+div
+ret
